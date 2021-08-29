@@ -41,6 +41,13 @@ $ github-activity-tweeter
 
 And I run it on GitHub Action. Please see [tweet.yaml](.github/workflows/tweet.yaml) for details.
 
-### Note
+## What does this tweet about?
 
-- duplicated tweet will be skipped.
+- User opened an issue.
+- User opened a pull request
+- User created/published a release
+- User create/publicized a repository.
+
+## Useful feature
+
+- check your timeline and don't tweet duplicated one
