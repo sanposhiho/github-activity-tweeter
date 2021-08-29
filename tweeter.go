@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dghubble/go-twitter/twitter"
@@ -46,115 +47,75 @@ func tweet() error {
 	if res.StatusCode != http.StatusOK {
 		return xerrors.New("response from github is not 200")
 	}
+
+	user, resp, err := twiclient.Accounts.VerifyCredentials(&twitter.AccountVerifyParams{})
+	if err != nil {
+		return xerrors.Errorf("verify credentials: %w", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return xerrors.New("response from twitter is not 200")
+	}
+
+	tweets, resp, err := twiclient.Timelines.UserTimeline(&twitter.UserTimelineParams{
+		ScreenName: user.ScreenName,
+	})
+	if err != nil {
+		return xerrors.Errorf("get recent tweet: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return xerrors.Errorf("statuscode is not 200, %d", resp.StatusCode)
+	}
+
 	// msgs is used for duplicate checking
 	msgs := map[string]bool{}
 	for _, e := range events {
 		if e.CreatedAt.Before(until) && e.CreatedAt.After(from) {
-			// TODO: Make it possible to set which events are tweeted.
-			var msg string
-			switch *e.Type {
-			//			case "CheckRunEvent":
-			//			case "CheckSuiteEvent":
-			//			case "CommitCommentEvent":
-			//			case "ContentReferenceEvent":
-			//			case "CreateEvent":
-			//			case "DeleteEvent":
-			//			case "DeployKeyEvent":
-			//			case "DeploymentEvent":
-			//			case "DeploymentStatusEvent":
-			//			case "ForkEvent":
-			//			case "GitHubAppAuthorizationEvent":
-			//			case "GollumEvent":
-			//			case "InstallationEvent":
-			//			case "InstallationRepositoriesEvent":
-			//			case "IssueCommentEvent":
-			case "IssuesEvent":
-				isu, err := e.ParsePayload()
-				if err != nil {
-					return xerrors.Errorf("parse payload: %w", err)
-				}
-				isuevent, ok := isu.(*github.IssuesEvent)
-				if !ok {
-					return xerrors.New("failed to convert to IssuesEvent")
-				}
-
-				msg = fmt.Sprintf("%s created a issue in %s || %s", generalconfig.GitHubUserName, *e.Repo.Name, *isuevent.Issue.HTMLURL)
-			//			case "LabelEvent":
-			//			case "MarketplacePurchaseEvent":
-			//			case "MemberEvent":
-			//			case "MembershipEvent":
-			//			case "MetaEvent":
-			//			case "MilestoneEvent":
-			//			case "OrganizationEvent":
-			//			case "OrgBlockEvent":
-			//			case "PackageEvent":
-			//			case "PageBuildEvent":
-			//			case "PingEvent":
-			//			case "ProjectEvent":
-			//			case "ProjectCardEvent":
-			//			case "ProjectColumnEvent":
-			//			case "PublicEvent":
-			case "PullRequestEvent":
-				pr, err := e.ParsePayload()
-				if err != nil {
-					return xerrors.Errorf("parse payload: %w", err)
-				}
-				prevent, ok := pr.(*github.PullRequestEvent)
-				if !ok {
-					return xerrors.New("failed to convert to PullRequestEvent")
-				}
-
-				msg = fmt.Sprintf("%s created a pull request in %s || %s", generalconfig.GitHubUserName, *e.Repo.Name, *prevent.PullRequest.HTMLURL)
-			//			case "PullRequestReviewEvent":
-			//			case "PullRequestReviewCommentEvent":
-			//			case "PullRequestTargetEvent":
-			//			case "PushEvent":
-			case "ReleaseEvent":
-				pr, err := e.ParsePayload()
-				if err != nil {
-					return xerrors.Errorf("parse payload: %w", err)
-				}
-				typed, ok := pr.(*github.ReleaseEvent)
-				if !ok {
-					return xerrors.New("failed to convert to ReleaseEvent")
-				}
-
-				msg = fmt.Sprintf("%s released %s of %s || %s", generalconfig.GitHubUserName, *typed.Release.TagName, *e.Repo.Name, *typed.Release.HTMLURL)
-			case "RepositoryEvent":
-				pay, err := e.ParsePayload()
-				if err != nil {
-					return xerrors.Errorf("parse payload: %w", err)
-				}
-				typed, ok := pay.(*github.RepositoryEvent)
-				if !ok {
-					return xerrors.New("failed to convert to RepositoryEvent")
-				}
-
-				if *typed.Action != "created" && *typed.Action != "publicized" {
-					continue
-				}
-
-				msg = fmt.Sprintf("%s %s repository %s || %s", generalconfig.GitHubUserName, *typed.Action, *e.Repo.Name, *typed.Repo.HTMLURL)
-				//			case "RepositoryDispatchEvent":
-				//			case "RepositoryVulnerabilityAlertEvent":
-				//			case "StarEvent":
-				//			case "StatusEvent":
-				//			case "TeamEvent":
-				//			case "TeamAddEvent":
-				//			case "UserEvent":
-				//			case "WatchEvent":
-				//			case "WorkflowDispatchEvent":
-				//			case "WorkflowRunEvent":
-			default:
+			msg, url, err := BuildMessage(e, generalconfig.GitHubUserName)
+			if err != nil {
+				// ok to ignore, because this is not critical error.
 				continue
 			}
-			log.Println("Try tweet: " + msg)
-			if msgs[msg] {
+
+			// message must be this format -- "some message || URL"
+			mergedMsg := fmt.Sprintf("%s || %s", msg, url)
+			log.Println("Try tweet: " + mergedMsg)
+			// check if recently tweeted from message map
+			if msgs[mergedMsg] {
 				log.Println("recently tweeted, skipped")
 				continue
 			}
-			msgs[msg] = true
-			_, resp, err := twiclient.Statuses.Update(msg, nil)
+
+			// make it true not to tweet again
+			msgs[mergedMsg] = true
+
+			// check if recently tweeted from user's timeline
+			hasRecentlyTweeted := false
+			for _, t := range tweets {
+				trimedtweet := strings.Split(t.Text, "||")
+				trimedmsg := strings.Split(mergedMsg, "||")
+				if len(trimedmsg) != len(trimedtweet) {
+					continue
+				}
+
+				isSame := true
+				// last trimed list entity must be URL, and Twitter changes URL with their format(t.co), so it will always be different.
+				for i := 0; i < len(trimedtweet)-1; i++ {
+					if trimedmsg[i] != trimedtweet[i] {
+						isSame = false
+					}
+				}
+				if isSame {
+					hasRecentlyTweeted = true
+				}
+			}
+			if hasRecentlyTweeted {
+				log.Println("recently tweeted, skipped")
+				continue
+			}
+
+			// tweet
+			_, resp, err = twiclient.Statuses.Update(mergedMsg, nil)
 			if err != nil {
 				var typed twitter.APIError
 				ok := errors.As(err, &typed)
@@ -188,4 +149,121 @@ func NewTwitterClient(generalconfig *config.Config) *twitter.Client {
 	token := oauth1.NewToken(generalconfig.AccessToken, generalconfig.AccessTokenSecret)
 	httpClient := config.Client(oauth1.NoContext, token)
 	return twitter.NewClient(httpClient)
+}
+
+func BuildMessage(e *github.Event, githubusername string) (string, string, error) {
+	// TODO: Make it possible to set which events are tweeted.
+	var msg string
+	var url string
+	switch *e.Type {
+	//			case "CheckRunEvent":
+	//			case "CheckSuiteEvent":
+	//			case "CommitCommentEvent":
+	//			case "ContentReferenceEvent":
+	//			case "CreateEvent":
+	//			case "DeleteEvent":
+	//			case "DeployKeyEvent":
+	//			case "DeploymentEvent":
+	//			case "DeploymentStatusEvent":
+	//			case "ForkEvent":
+	//			case "GitHubAppAuthorizationEvent":
+	//			case "GollumEvent":
+	//			case "InstallationEvent":
+	//			case "InstallationRepositoriesEvent":
+	//			case "IssueCommentEvent":
+	//			case "LabelEvent":
+	//			case "MarketplacePurchaseEvent":
+	//			case "MemberEvent":
+	//			case "MembershipEvent":
+	//			case "MetaEvent":
+	//			case "MilestoneEvent":
+	//			case "OrganizationEvent":
+	//			case "OrgBlockEvent":
+	//			case "PackageEvent":
+	//			case "PageBuildEvent":
+	//			case "PingEvent":
+	//			case "ProjectEvent":
+	//			case "ProjectCardEvent":
+	//			case "ProjectColumnEvent":
+	//			case "PublicEvent":
+	//			case "PullRequestReviewEvent":
+	//			case "PullRequestReviewCommentEvent":
+	//			case "PullRequestTargetEvent":
+	//			case "PushEvent":
+	//			case "RepositoryDispatchEvent":
+	//			case "RepositoryVulnerabilityAlertEvent":
+	//			case "StatusEvent":
+	//			case "TeamEvent":
+	//			case "TeamAddEvent":
+	//			case "UserEvent":
+	//			case "WatchEvent":
+	//			case "WorkflowDispatchEvent":
+	//			case "WorkflowRunEvent":
+	case "IssuesEvent":
+		isu, err := e.ParsePayload()
+		if err != nil {
+			return "", "", xerrors.Errorf("parse payload: %w", err)
+		}
+		isuevent, ok := isu.(*github.IssuesEvent)
+		if !ok {
+			return "", "", xerrors.New("failed to convert to IssuesEvent")
+		}
+		if *isuevent.Action != "opened" {
+			return "", "", xerrors.New("unsupported action on IssuesEvent")
+		}
+
+		msg = fmt.Sprintf("%s opened a issue in %s", githubusername, *e.Repo.Name)
+		url = *isuevent.Issue.HTMLURL
+	case "PullRequestEvent":
+		pr, err := e.ParsePayload()
+		if err != nil {
+			return "", "", xerrors.Errorf("parse payload: %w", err)
+		}
+		prevent, ok := pr.(*github.PullRequestEvent)
+		if !ok {
+			return "", "", xerrors.New("failed to convert to PullRequestEvent")
+		}
+		if *prevent.Action != "opened" {
+			return "", "", xerrors.New("unsupported action on PullRequestEvent")
+		}
+
+		msg = fmt.Sprintf("%s created a pull request in %s", githubusername, *e.Repo.Name)
+		url = *prevent.PullRequest.HTMLURL
+	case "ReleaseEvent":
+		pr, err := e.ParsePayload()
+		if err != nil {
+			return "", "", xerrors.Errorf("parse payload: %w", err)
+		}
+		typed, ok := pr.(*github.ReleaseEvent)
+		if !ok {
+			return "", "", xerrors.New("failed to convert to ReleaseEvent")
+		}
+		if *typed.Action != "created" && *typed.Action != "published" {
+			return "", "", xerrors.New("unsupported action on PullRequestEvent")
+		}
+
+		msg = fmt.Sprintf("%s %s release %s of %s", githubusername, *typed.Action, *typed.Release.TagName, *e.Repo.Name)
+		url = *typed.Release.HTMLURL
+	case "RepositoryEvent":
+		pay, err := e.ParsePayload()
+		if err != nil {
+			return "", "", xerrors.Errorf("parse payload: %w", err)
+		}
+		typed, ok := pay.(*github.RepositoryEvent)
+		if !ok {
+			return "", "", xerrors.New("failed to convert to RepositoryEvent")
+		}
+
+		if *typed.Action != "created" && *typed.Action != "publicized" {
+			return "", "", xerrors.New("unsupported action on RepositoryEvent")
+		}
+
+		msg = fmt.Sprintf("%s %s repository %s", githubusername, *typed.Action, *e.Repo.Name)
+		url = *typed.Repo.HTMLURL
+
+	default:
+		return "", "", xerrors.New("unsupported event")
+	}
+
+	return msg, url, nil
 }
