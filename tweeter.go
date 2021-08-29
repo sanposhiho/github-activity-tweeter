@@ -48,9 +48,17 @@ func tweet() error {
 		return xerrors.New("response from github is not 200")
 	}
 
-	userid := "timessanposhiho"
+	user, resp, err := twiclient.Accounts.VerifyCredentials(&twitter.AccountVerifyParams{})
+	if err != nil {
+		return xerrors.Errorf("verify credentials: %w", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return xerrors.New("response from twitter is not 200")
+	}
+
 	tweets, resp, err := twiclient.Timelines.UserTimeline(&twitter.UserTimelineParams{
-		ScreenName: userid,
+		ScreenName: user.ScreenName,
 	})
 	if err != nil {
 		return xerrors.Errorf("get recent tweet: %w", err)
