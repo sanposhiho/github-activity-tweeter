@@ -1,6 +1,6 @@
 # github-activity-tweeter
 
-tweet your activity on GitHub. It is an useful　tool to use on GitHub Action.
+tweet your activity on GitHub. It is an useful tool to use on GitHub Action.
 
 # Getting started
 
