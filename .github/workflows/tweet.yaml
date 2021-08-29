@@ -1,9 +1,6 @@
 name: Tweet activity
 
 on:
-  push:
-  pull_request:
-    types: [ opened, synchronize ]
   schedule:
     - cron:  '0/15 * * * *'
   workflow_dispatch:
