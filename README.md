@@ -22,7 +22,9 @@ go install github.com/sanposhiho/github-activity-tweeter@latest
 
 ## Configure
 
-You need to pass these environment variables to configure.
+You need to get tokens for twitter. see: https://developer.twitter.com/en/apply-for-access
+
+And you need to pass these environment variables to configure.
 
 ```
 USER_NAME(string): github user name you want to get activity
