@@ -1,8 +1,6 @@
 # github-activity-tweeter
 
-tweet your activity on GitHub. 
-
-It is useful to use it on GitHub Action.
+tweet your activity on GitHub. It is an useful　tool to use on GitHub Action.
 
 # Getting started
 
@@ -48,9 +46,13 @@ EXCLUDE_REPO(regexp): you can exclude events of some repository.
 $ github-activity-tweeter
 ```
 
-And I run it on GitHub Action. Please see [tweet.yaml](.github/workflows/tweet.yaml) for details.
+TIPs: It checks your timeline and don't tweet duplicated one.
 
-Note: It checks your timeline and don't tweet duplicated one
+## Run on GitHub Action
+
+Please see [tweet.yaml](.github/workflows/tweet.yaml). 
+
+You only have to folk this repo and add needed environment variables to repository secrets.
 
 ## What does this tweet about?
 
