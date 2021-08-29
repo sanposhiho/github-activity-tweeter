@@ -22,15 +22,22 @@ go install github.com/sanposhiho/github-activity-tweeter@latest
 
 ## Configure
 
-You need to pass some env to configure.
+You need to pass these environment variables to configure.
 
 ```
-USER_NAME: github user name you want to get activity
-INTERVAL: How far back in time to get activities.
-ACCESS_TOKEN_SECRET: access token secret for twitter.
-ACCESS_TOKEN: access token for twitter.
-CONSUMER_SECRET: consumer secret for twitter.
-CONSUMER_KEY: consumer key for twitter.
+USER_NAME(string): github user name you want to get activity
+INTERVAL(duration): How far back in time to get activities. (like 1s, 2m, 3h...)
+ACCESS_TOKEN_SECRET(string): access token secret for twitter.
+ACCESS_TOKEN(string): access token for twitter.
+CONSUMER_SECRET(string): consumer secret for twitter.
+CONSUMER_KEY(string): consumer key for twitter.
+```
+
+And, you can customize with these environment variables.
+
+```
+EXCLUDE_EVENT(string): you can exclude some event type. see below about event types. And you can pass multiple event with , separated values.
+EXCLUDE_REPO(regexp): you can exclude events of some repository. 
 ```
 
 ## Run
@@ -43,10 +50,10 @@ And I run it on GitHub Action. Please see [tweet.yaml](.github/workflows/tweet.y
 
 ## What does this tweet about?
 
-- User opened an issue.
-- User opened a pull request
-- User created/published a release
-- User create/publicized a repository.
+- User opened an issue.(eventtype: `IssuesEvent`)
+- User opened a pull request.(eventtype: `PullRequestEvent`)
+- User created/published a release.(eventtype: `ReleaseEvent`)
+- User create/publicized a repository.(eventtype: `RepositoryEvent`)
 
 ## Useful feature
 
