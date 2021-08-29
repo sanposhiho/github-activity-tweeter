@@ -1,0 +1,23 @@
+name: Tweet activity
+
+on:
+  schedule:
+    - cron:  '0/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+      - name: Run
+        env:
+          USER_NAME: ${{ secrets.USER_NAME }}
+          INTERVAL: ${{ secrets.INTERVAL }}
+          ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET }}
+          CONSUMER_KEY: ${{ secrets.CONSUMER_KEY }}
+        run: |
+          go run tweeter.go

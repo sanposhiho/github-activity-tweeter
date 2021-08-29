@@ -61,9 +61,9 @@ func NewConfig() (*Config, error) {
 }
 
 func getGitHubUserName() (string, error) {
-	e := os.Getenv("GITHUB_USER_NAME")
+	e := os.Getenv("USER_NAME")
 	if e == "" {
-		return "", xerrors.Errorf("get GITHUB_USER_NAME from env: %w", ErrEmptyEnv)
+		return "", xerrors.Errorf("get USER_NAME from env: %w", ErrEmptyEnv)
 	}
 
 	return e, nil
