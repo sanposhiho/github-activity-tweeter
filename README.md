@@ -2,6 +2,8 @@
 
 tweet your activity on GitHub. 
 
+It is useful to use it on GitHub Action.
+
 # Getting started
 
 ## Install
