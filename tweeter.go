@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -71,7 +72,7 @@ func tweet() error {
 	msgs := map[string]bool{}
 	for _, e := range events {
 		if e.CreatedAt.Before(until) && e.CreatedAt.After(from) {
-			msg, url, err := BuildMessage(e, generalconfig.GitHubUserName)
+			msg, url, err := BuildMessage(e, generalconfig.GitHubUserName, generalconfig.ExcludeEvent, generalconfig.ExcludeRepoPattern)
 			if err != nil {
 				// ok to ignore, because this is not critical error.
 				continue
@@ -151,7 +152,16 @@ func NewTwitterClient(generalconfig *config.Config) *twitter.Client {
 	return twitter.NewClient(httpClient)
 }
 
-func BuildMessage(e *github.Event, githubusername string) (string, string, error) {
+func BuildMessage(e *github.Event, githubusername string, excludeEvent []string, excludeRepoPattern *regexp.Regexp) (string, string, error) {
+	if excludeRepoPattern != nil && excludeRepoPattern.MatchString(*e.Repo.Name) {
+		return "", "", xerrors.New("an event for the repository is excluded by config")
+	}
+
+	excludeEventMap := map[string]bool{}
+	for _, ee := range excludeEvent {
+		excludeEventMap[ee] = true
+	}
+
 	// TODO: Make it possible to set which events are tweeted.
 	var msg string
 	var url string
@@ -200,6 +210,9 @@ func BuildMessage(e *github.Event, githubusername string) (string, string, error
 	//			case "WorkflowDispatchEvent":
 	//			case "WorkflowRunEvent":
 	case "IssuesEvent":
+		if excludeEventMap["IssuesEvent"] {
+			return "", "", xerrors.New("this event are excluded by config")
+		}
 		isu, err := e.ParsePayload()
 		if err != nil {
 			return "", "", xerrors.Errorf("parse payload: %w", err)
@@ -215,6 +228,9 @@ func BuildMessage(e *github.Event, githubusername string) (string, string, error
 		msg = fmt.Sprintf("%s opened a issue in %s", githubusername, *e.Repo.Name)
 		url = *isuevent.Issue.HTMLURL
 	case "PullRequestEvent":
+		if excludeEventMap["PullRequestEvent"] {
+			return "", "", xerrors.New("this event are excluded by config")
+		}
 		pr, err := e.ParsePayload()
 		if err != nil {
 			return "", "", xerrors.Errorf("parse payload: %w", err)
@@ -230,6 +246,9 @@ func BuildMessage(e *github.Event, githubusername string) (string, string, error
 		msg = fmt.Sprintf("%s created a pull request in %s", githubusername, *e.Repo.Name)
 		url = *prevent.PullRequest.HTMLURL
 	case "ReleaseEvent":
+		if excludeEventMap["ReleaseEvent"] {
+			return "", "", xerrors.New("this event are excluded by config")
+		}
 		pr, err := e.ParsePayload()
 		if err != nil {
 			return "", "", xerrors.Errorf("parse payload: %w", err)
@@ -245,6 +264,9 @@ func BuildMessage(e *github.Event, githubusername string) (string, string, error
 		msg = fmt.Sprintf("%s %s release %s of %s", githubusername, *typed.Action, *typed.Release.TagName, *e.Repo.Name)
 		url = *typed.Release.HTMLURL
 	case "RepositoryEvent":
+		if excludeEventMap["RepositoryEvent"] {
+			return "", "", xerrors.New("this event are excluded by config")
+		}
 		pay, err := e.ParsePayload()
 		if err != nil {
 			return "", "", xerrors.Errorf("parse payload: %w", err)

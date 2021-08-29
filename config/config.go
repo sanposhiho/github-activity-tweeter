@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -13,8 +15,10 @@ var ErrEmptyEnv = errors.New("env is needed, but empty")
 
 // Config is configuration for simulator.
 type Config struct {
-	Interval       time.Duration
-	GitHubUserName string
+	Interval           time.Duration
+	GitHubUserName     string
+	ExcludeRepoPattern *regexp.Regexp
+	ExcludeEvent       []string
 
 	// For Twitter
 	ConsumerKey       string
@@ -49,15 +53,48 @@ func NewConfig() (*Config, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("get AccessTokenSecret")
 	}
+	excludeRepo, err := getExcludeRepoPattern()
+	if err != nil {
+		return nil, xerrors.Errorf("get ExcludeRepoPattern")
+	}
+	excludeEvent, err := getExcludeEvent()
+	if err != nil {
+		return nil, xerrors.Errorf("get ExcludeEvent")
+	}
 
 	return &Config{
-		GitHubUserName:    githubusername,
-		Interval:          interval,
-		ConsumerKey:       consumerkey,
-		ConsumerSecret:    consec,
-		AccessToken:       at,
-		AccessTokenSecret: ats,
+		GitHubUserName:     githubusername,
+		Interval:           interval,
+		ConsumerKey:        consumerkey,
+		ConsumerSecret:     consec,
+		AccessToken:        at,
+		AccessTokenSecret:  ats,
+		ExcludeEvent:       excludeEvent,
+		ExcludeRepoPattern: excludeRepo,
 	}, nil
+}
+
+func getExcludeRepoPattern() (*regexp.Regexp, error) {
+	e := os.Getenv("EXCLUDE_REPO")
+	if e == "" {
+		return nil, nil
+	}
+	r, err := regexp.Compile(e)
+	if err != nil {
+		return nil, xerrors.Errorf("compile regexp on EXCLUDE_REPO: %w", err)
+	}
+
+	return r, nil
+}
+
+func getExcludeEvent() ([]string, error) {
+	e := os.Getenv("EXCLUDE_EVENT")
+	if e == "" {
+		return nil, nil
+	}
+	splited := strings.Split(e, ",")
+
+	return splited, nil
 }
 
 func getGitHubUserName() (string, error) {
