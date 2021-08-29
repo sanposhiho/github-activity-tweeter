@@ -46,6 +46,8 @@ func tweet() error {
 	if res.StatusCode != http.StatusOK {
 		return xerrors.New("response from github is not 200")
 	}
+	// msgs is used for duplicate checking
+	msgs := map[string]bool{}
 	for _, e := range events {
 		if e.CreatedAt.Before(until) && e.CreatedAt.After(from) {
 			// TODO: Make it possible to set which events are tweeted.
@@ -107,7 +109,17 @@ func tweet() error {
 			//			case "PullRequestReviewCommentEvent":
 			//			case "PullRequestTargetEvent":
 			//			case "PushEvent":
-			//			case "ReleaseEvent":
+			case "ReleaseEvent":
+				pr, err := e.ParsePayload()
+				if err != nil {
+					return xerrors.Errorf("parse payload: %w", err)
+				}
+				typed, ok := pr.(*github.ReleaseEvent)
+				if !ok {
+					return xerrors.New("failed to convert to ReleaseEvent")
+				}
+
+				msg = fmt.Sprintf("%s released %s of %s || %s", generalconfig.GitHubUserName, *typed.Release.TagName, *e.Repo.Name, *typed.Release.HTMLURL)
 			case "RepositoryEvent":
 				pay, err := e.ParsePayload()
 				if err != nil {
@@ -137,6 +149,11 @@ func tweet() error {
 				continue
 			}
 			log.Println("Try tweet: " + msg)
+			if msgs[msg] {
+				log.Println("recently tweeted, skipped")
+				continue
+			}
+			msgs[msg] = true
 			_, resp, err := twiclient.Statuses.Update(msg, nil)
 			if err != nil {
 				var typed twitter.APIError
