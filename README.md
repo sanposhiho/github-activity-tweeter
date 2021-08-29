@@ -48,13 +48,11 @@ $ github-activity-tweeter
 
 And I run it on GitHub Action. Please see [tweet.yaml](.github/workflows/tweet.yaml) for details.
 
+Note: It checks your timeline and don't tweet duplicated one
+
 ## What does this tweet about?
 
 - User opened an issue.(eventtype: `IssuesEvent`)
 - User opened a pull request.(eventtype: `PullRequestEvent`)
 - User created/published a release.(eventtype: `ReleaseEvent`)
 - User create/publicized a repository.(eventtype: `RepositoryEvent`)
-
-## Useful feature
-
-- check your timeline and don't tweet duplicated one
