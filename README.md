@@ -38,3 +38,7 @@ $ github-activity-tweeter
 ```
 
 And I run it on GitHub Action. Please see [tweet.yaml](.github/workflows/tweet.yaml) for details.
+
+### Note
+
+- duplicated tweet will be skipped.

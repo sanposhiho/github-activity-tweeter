@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -65,7 +66,17 @@ func tweet() error {
 			//			case "InstallationEvent":
 			//			case "InstallationRepositoriesEvent":
 			//			case "IssueCommentEvent":
-			//			case "IssuesEvent":
+			case "IssuesEvent":
+				isu, err := e.ParsePayload()
+				if err != nil {
+					return xerrors.Errorf("parse payload: %w", err)
+				}
+				isuevent, ok := isu.(*github.IssuesEvent)
+				if !ok {
+					return xerrors.New("failed to convert to IssuesEvent")
+				}
+
+				msg = fmt.Sprintf("%s created a issue in %s || %s", generalconfig.GitHubUserName, *e.Repo.Name, *isuevent.Issue.HTMLURL)
 			//			case "LabelEvent":
 			//			case "MarketplacePurchaseEvent":
 			//			case "MemberEvent":
@@ -92,12 +103,26 @@ func tweet() error {
 				}
 
 				msg = fmt.Sprintf("%s created a pull request in %s || %s", generalconfig.GitHubUserName, *e.Repo.Name, *prevent.PullRequest.HTMLURL)
-				//			case "PullRequestReviewEvent":
-				//			case "PullRequestReviewCommentEvent":
-				//			case "PullRequestTargetEvent":
-				//			case "PushEvent":
-				//			case "ReleaseEvent":
-				//			case "RepositoryEvent":
+			//			case "PullRequestReviewEvent":
+			//			case "PullRequestReviewCommentEvent":
+			//			case "PullRequestTargetEvent":
+			//			case "PushEvent":
+			//			case "ReleaseEvent":
+			case "RepositoryEvent":
+				pay, err := e.ParsePayload()
+				if err != nil {
+					return xerrors.Errorf("parse payload: %w", err)
+				}
+				typed, ok := pay.(*github.RepositoryEvent)
+				if !ok {
+					return xerrors.New("failed to convert to RepositoryEvent")
+				}
+
+				if *typed.Action != "created" && *typed.Action != "publicized" {
+					continue
+				}
+
+				msg = fmt.Sprintf("%s %s repository %s || %s", generalconfig.GitHubUserName, *typed.Action, *e.Repo.Name, *typed.Repo.HTMLURL)
 				//			case "RepositoryDispatchEvent":
 				//			case "RepositoryVulnerabilityAlertEvent":
 				//			case "StarEvent":
@@ -111,8 +136,24 @@ func tweet() error {
 			default:
 				continue
 			}
+			log.Println("Try tweet: " + msg)
 			_, resp, err := twiclient.Statuses.Update(msg, nil)
 			if err != nil {
+				var typed twitter.APIError
+				ok := errors.As(err, &typed)
+				if ok {
+					isDuplicated := false
+					for _, e := range typed.Errors {
+						if e.Code == 187 {
+							log.Println("duplicated tweet, skipped")
+							isDuplicated = true
+						}
+					}
+					if isDuplicated {
+						continue
+					}
+				}
+
 				return xerrors.Errorf("tweet: %w", err)
 			}
 			defer resp.Body.Close()
