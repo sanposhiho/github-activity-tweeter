@@ -25,19 +25,19 @@ go install github.com/sanposhiho/github-activity-tweeter@latest
 You need to pass these environment variables to configure.
 
 ```
-USER_NAME: github user name you want to get activity
-INTERVAL: How far back in time to get activities. (like 1s, 2m, 3h...)
-ACCESS_TOKEN_SECRET: access token secret for twitter.
-ACCESS_TOKEN: access token for twitter.
-CONSUMER_SECRET: consumer secret for twitter.
-CONSUMER_KEY: consumer key for twitter.
+USER_NAME(string): github user name you want to get activity
+INTERVAL(duration): How far back in time to get activities. (like 1s, 2m, 3h...)
+ACCESS_TOKEN_SECRET(string): access token secret for twitter.
+ACCESS_TOKEN(string): access token for twitter.
+CONSUMER_SECRET(string): consumer secret for twitter.
+CONSUMER_KEY(string): consumer key for twitter.
 ```
 
 And, you can customize with these environment variables.
 
 ```
-EXCLUDE_EVENT: you can exclude some event type. see below about event types. And you can pass multiple event with , separated values.
-EXCLUDE_REPO: you can exclude events of some repository. You can use regexp. 
+EXCLUDE_EVENT(string): you can exclude some event type. see below about event types. And you can pass multiple event with , separated values.
+EXCLUDE_REPO(regexp): you can exclude events of some repository. 
 ```
 
 ## Run
