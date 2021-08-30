@@ -1,8 +1,6 @@
 # github-activity-tweeter
 
-tweet your activity on GitHub. 
-
-It is useful to use it on GitHub Action.
+tweet your activity on GitHub. It is an useful tool to use on GitHub Action.
 
 # Getting started
 
@@ -22,7 +20,9 @@ go install github.com/sanposhiho/github-activity-tweeter@latest
 
 ## Configure
 
-You need to pass these environment variables to configure.
+You need to get tokens for twitter. see: https://developer.twitter.com/en/apply-for-access
+
+And you need to pass these environment variables to configure.
 
 ```
 USER_NAME(string): github user name you want to get activity
@@ -46,7 +46,13 @@ EXCLUDE_REPO(regexp): you can exclude events of some repository.
 $ github-activity-tweeter
 ```
 
-And I run it on GitHub Action. Please see [tweet.yaml](.github/workflows/tweet.yaml) for details.
+TIPs: It checks your timeline and don't tweet duplicated one.
+
+## Run on GitHub Action
+
+Please see [tweet.yaml](.github/workflows/tweet.yaml). 
+
+You only have to folk this repo and add needed environment variables to repository secrets.
 
 ## What does this tweet about?
 
@@ -54,7 +60,3 @@ And I run it on GitHub Action. Please see [tweet.yaml](.github/workflows/tweet.y
 - User opened a pull request.(eventtype: `PullRequestEvent`)
 - User created/published a release.(eventtype: `ReleaseEvent`)
 - User create/publicized a repository.(eventtype: `RepositoryEvent`)
-
-## Useful feature
-
-- check your timeline and don't tweet duplicated one
