@@ -46,7 +46,9 @@ EXCLUDE_REPO(regexp): you can exclude events of some repository.
 $ github-activity-tweeter
 ```
 
-TIPs: It checks your timeline and don't tweet duplicated one.
+**TIPs** 
+- It checks your timeline and don't tweet duplicated one.
+- It tweets short message if generated message is too long.
 
 ## Run on GitHub Action
 
